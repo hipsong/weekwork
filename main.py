@@ -1,45 +1,62 @@
 import streamlit as st
 import pandas as pd
+import datetime
+import os
 
-# 1. 설정 (메모해둔 시트 ID를 여기에 넣으세요)
-SHEET_ID = "1ZF0lZ3Fiuelb5tntJl6m7xE1Lomkegpm1wD1TA_e5Qk"
-URL = f"https://docs.google.com/spreadsheets/d/1ZF0lZ3Fiuelb5tntJl6m7xE1Lomkegpm1wD1TA_e5Qk/gviz/tq?tqx=out:csv"
+# 파일 저장 경로 (간단하게 CSV로 관리)
+DB_FILE = "weekly_plans.csv"
 
-st.set_page_config(page_title="서희승 과장 주간보고", layout="wide")
-
-@st.cache_data(ttl=10)
+# 데이터 로드 함수
 def load_data():
-    # 데이터 전체 로드
-    df = pd.read_csv(URL, header=None).astype(str).replace('nan', '')
-    return df
+    if os.path.exists(DB_FILE):
+        return pd.read_csv(DB_FILE)
+    else:
+        return pd.DataFrame(columns=["날짜", "부서", "작성자", "핵심목표", "상세내용", "이슈사항"])
 
-try:
-    data = load_data()
+st.set_page_config(page_title="제조업 주간계획 관리 시스템", layout="wide")
 
-    # 상단 요약 정보 (1~3행)
-    st.title(f"🚀 {data.iloc[0, 1]}") # 제목
+st.title("🏭 주간 업무 계획 관리 도구")
+
+menu = ["계획 작성", "과거 기록 조회"]
+choice = st.sidebar.selectbox("메뉴 선택", menu)
+
+if choice == "계획 작성":
+    st.subheader("📝 이번 주 계획 입력")
     
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("💎 고순도SG 재고", f"{data.iloc[1, 1]} t") # 재고
-    with col2:
-        st.metric("👤 작성자", data.iloc[2, 1]) # 작성자
-    with col3:
-        st.metric("📅 확인 시점", pd.Timestamp.now().strftime("%Y-%m-%d"))
+    with st.form("plan_form"):
+        col1, col2 = st.columns(2)
+        with col1:
+            date = st.date_input("작성 일자", datetime.date.today())
+            dept = st.text_input("부서명", value="생산관리팀")
+        with col2:
+            writer = st.text_input("작성자")
+            goal = st.text_input("이번 주 핵심 목표")
 
-    st.divider()
+        content = st.text_area("주요 업무 상세 (회사 양식에 맞춰 작성)")
+        issue = st.text_area("특이사항 및 이슈 (자재, 설비 등)")
+        
+        submit = st.form_submit_button("계획 저장하기")
+        
+        if submit:
+            new_data = pd.DataFrame([[date, dept, writer, goal, content, issue]], 
+                                    columns=["날짜", "부서", "작성자", "핵심목표", "상세내용", "이슈사항"])
+            db = load_data()
+            db = pd.concat([db, new_data], ignore_index=True)
+            db.to_csv(DB_FILE, index=False, encoding='utf-8-sig')
+            st.success(f"{date}자 계획이 성공적으로 저장되었습니다!")
 
-    # 하단 표 정보 (5행부터 끝까지)
-    st.subheader("📝 주간 상세 내역 (전주 계획 / 전주 실행 / 금주 계획)")
+elif choice == "과거 기록 조회":
+    st.subheader("🔍 저장된 계획 불러오기")
+    db = load_data()
     
-    # 5행을 컬럼명으로 잡고 6행부터 데이터로 취급
-    plan_df = data.iloc[5:11, 0:4] # 월~금 데이터만 추출
-    plan_df.columns = ["요일", "전주 계획", "전주 실행", "금주 계획"]
-    
-    # 표 출력
-    st.table(plan_df)
-
-    st.success("✅ 구글 시트 업데이트 시 자동으로 반영됩니다.")
-
-except Exception as e:
-    st.error(f"시트 연동 에러: {e}")
+    if not db.empty:
+        # 날짜별 필터링
+        search_date = st.selectbox("조회할 날짜 선택", db["날짜"].unique())
+        selected_plan = db[db["날짜"] == search_date]
+        st.table(selected_plan)
+        
+        # 엑셀로 내보내기 기능
+        csv = selected_plan.to_csv(index=False, encoding='utf-8-sig').encode('utf-8-sig')
+        st.download_button("엑셀(CSV) 다운로드", data=csv, file_name=f"plan_{search_date}.csv")
+    else:
+        st.warning("저장된 기록이 없습니다.")
