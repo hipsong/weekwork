@@ -7,7 +7,7 @@ st.set_page_config(page_title="주간 업무 계획서", layout="wide")
 # 구글 시트 주소 (공유 URL의 ID 부분만 교체하세요)
 # 예: https://docs.google.com/spreadsheets/d/이부분이ID입니다/edit
 SHEET_ID = "1ZF0lZ3Fiuelb5tntJl6m7xE1Lomkegpm1wD1TA_e5Qk"
-SHEET_URL = f"https://docs.google.com/spreadsheets/d/{1ZF0lZ3Fiuelb5tntJl6m7xE1Lomkegpm1wD1TA_e5Qk}/gviz/tq?tqx=out:csv"
+SHEET_URL = f"https://docs.google.com/spreadsheets/d/1ZF0lZ3Fiuelb5tntJl6m7xE1Lomkegpm1wD1TA_e5Qk/gviz/tq?tqx=out:csv"
 
 @st.cache_data(ttl=60) # 1분마다 자동 갱신
 def load_data():
