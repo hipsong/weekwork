@@ -2,45 +2,49 @@ import streamlit as st
 import pandas as pd
 
 # 1. 주소 설정
-SHEET_URL = "https://docs.google.com/spreadsheets/d/1ZF0lZ3Fiuelb5tntJl6m7xE1Lomkegpm1wD1TA_e5Qk/edit?gid=0#gid=0"
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1ZF0lZ3Fiuelb5tntJl6m7xE1Lomkegpm1wD1TA_e5Qk/gviz/tq?tqx=out:csv"
 
-st.set_page_config(page_title="주간계획서 보고", layout="wide")
+st.set_page_config(page_title="서희승 과장 주간계획서", layout="wide")
 
 @st.cache_data(ttl=60)
 def load_data():
-    # 데이터 로드 (헤더 없이 가져온 후 직접 정리)
-    df = pd.read_csv(SHEET_URL, header=None)
+    # 데이터 로드
+    df = pd.read_csv(SHEET_URL)
     
-    # 1) 완전히 비어있는 행과 열 제거
-    df = df.dropna(how='all').dropna(axis=1, how='all')
+    # 1) 요일 데이터가 있는 행 찾기 ('월', '화', '수', '목', '금'을 찾습니다)
+    # 첫 번째 열(일자/요일)을 기준으로 필터링합니다.
+    target_days = ['월', '화', '수', '목', '금']
     
-    # 2) "일자/요일" 혹은 "월", "화" 등 요일 데이터가 포함된 행 찾기
-    # 데이터 시작점(월요일)부터 끝점(금요일 혹은 토요일)까지만 필터링
-    days = ['월', '화', '수', '목', '금']
+    # 데이터프레임의 모든 열 이름을 초기화하여 인덱스로 접근하기 쉽게 만듭니다.
+    df.columns = [i for i in range(len(df.columns))]
     
-    # 첫 번째 열에서 요일이 들어있는 행만 추출
-    filtered_df = df[df[0].isin(days)]
+    # 요일이 포함된 행만 추출
+    filtered = df[df[0].isin(target_days)].copy()
     
-    # 컬럼명 설정 (공유해주신 양식 기준)
-    filtered_df.columns = ['요일', '전주 계획', '비고1', '전주 실행', '비고2', '금주 계획'] + [f'기타{i}' for i in range(len(filtered_df.columns)-6)]
+    # 필요한 열만 선택 (0:요일, 1:전주계획, 2:전주실행, 3:금주계획)
+    # 시트 구조에 따라 열 번호는 [0, 1, 2, 3]으로 매칭됩니다.
+    result = filtered[[0, 1, 2, 3]]
+    result.columns = ['요일', '전주 계획', '전주 실행', '금주 계획']
     
-    # 필요한 컬럼만 선택
-    result = filtered_df[['요일', '전주 계획', '전주 실행', '금주 계획']]
     return result
 
-st.title("📋 실시간 주간 업무 계획서")
+st.title("📅 주간 업무 계획 보고")
+st.markdown("### 👤 작성자: 서희승 과장 (구지 원료팀)")
 
 try:
     plan_data = load_data()
     
     if not plan_data.empty:
-        st.subheader("🗓️ 이번 주 요일별 업무 현황")
-        # 인덱스 없이 깔끔하게 표로 출력
+        # 표 형식으로 출력
+        st.subheader("🗓️ 요일별 세부 계획 및 실행 현황")
+        
+        # 데이터가 깔끔하게 보이도록 스타일 적용
         st.table(plan_data)
         
-        st.success("사장님, 위 표는 구글 시트의 최신 내용을 반영하고 있습니다.")
+        st.info(f"💡 마지막 업데이트: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        st.success("사장님, 위 표는 구글 시트의 내용을 실시간으로 반영하고 있습니다.")
     else:
-        st.warning("데이터는 불러왔으나 요일(월~금)을 찾지 못했습니다. 시트의 첫 번째 열에 요일이 있는지 확인해 주세요.")
+        st.error("요일 데이터를 찾을 수 없습니다. 시트의 첫 번째 열에 '월', '화' 등의 요일이 정확히 입력되어 있는지 확인해주세요.")
 
 except Exception as e:
     st.error(f"데이터를 불러오는 중 오류가 발생했습니다: {e}")
