@@ -3,7 +3,7 @@ import pandas as pd
 
 # 1. 설정 (메모해둔 시트 ID를 여기에 넣으세요)
 SHEET_ID = "1ZF0lZ3Fiuelb5tntJl6m7xE1Lomkegpm1wD1TA_e5Qk"
-URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv"
+URL = f"https://docs.google.com/spreadsheets/d/1ZF0lZ3Fiuelb5tntJl6m7xE1Lomkegpm1wD1TA_e5Qk/gviz/tq?tqx=out:csv"
 
 st.set_page_config(page_title="서희승 과장 주간보고", layout="wide")
 
