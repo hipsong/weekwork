@@ -11,9 +11,9 @@ def load_data():
         return pd.read_csv(DB_FILE)
     return pd.DataFrame()
 
-st.set_page_config(page_title="제조업 주간계획 시스템", layout="wide")
+st.set_page_config(page_title="세라솔 주간계획", layout="wide")
 
-st.title("🏭 주간 업무 계획/실적 관리")
+st.title("🏭 주간 업무 계획")
 
 # 사이드바 메뉴
 menu = ["계획 작성 및 저장", "기록 조회"]
