@@ -1,58 +1,45 @@
 import streamlit as st
 import pandas as pd
 
-# 1. 주소 설정
-SHEET_URL = "https://docs.google.com/spreadsheets/d/1ZF0lZ3Fiuelb5tntJl6m7xE1Lomkegpm1wD1TA_e5Qk/gviz/tq?tqx=out:csv"
+# 1. 설정 (메모해둔 시트 ID를 여기에 넣으세요)
+SHEET_ID = "1ZF0lZ3Fiuelb5tntJl6m7xE1Lomkegpm1wD1TA_e5Qk"
+URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv"
 
 st.set_page_config(page_title="서희승 과장 주간보고", layout="wide")
 
 @st.cache_data(ttl=10)
-def load_all_data():
-    df = pd.read_csv(SHEET_URL, header=None)
-    df = df.astype(str).replace('nan', '')
+def load_data():
+    # 데이터 전체 로드
+    df = pd.read_csv(URL, header=None).astype(str).replace('nan', '')
     return df
 
 try:
-    full_df = load_all_data()
+    data = load_data()
 
-    # --- [상단 고정 영역] ---
-    # 1행 1열에서 "26년 1월 4주 주간계획서"라는 제목을 가져옵니다.
-    weekly_title = full_df.iloc[0, 0] 
-    st.title(f"📊 {weekly_title}")
+    # 상단 요약 정보 (1~3행)
+    st.title(f"🚀 {data.iloc[0, 1]}") # 제목
     
-    st.markdown("---")
-    
-    # 지표(Metric) 설정
     col1, col2, col3 = st.columns(3)
     with col1:
-        # 요청하신 대로 2.5t으로 수정했습니다!
-        # 나중에 시트 특정 셀에 재고를 적으시면 자동으로 바뀌게 연결할 수 있습니다.
-        st.metric(label="💎 고순도 재고", value="2.5 t") 
+        st.metric("💎 고순도SG 재고", f"{data.iloc[1, 1]} t") # 재고
     with col2:
-        st.metric(label="👤 작성자", value="서희승 과장")
+        st.metric("👤 작성자", data.iloc[2, 1]) # 작성자
     with col3:
-        # 작성일자 정보 (시트 7행 2열)
-        write_date = full_df.iloc[6, 1]
-        st.metric(label="📅 작성일자", value=write_date)
+        st.metric("📅 확인 시점", pd.Timestamp.now().strftime("%Y-%m-%d"))
 
     st.divider()
 
-    # --- [중단 영역: 요일별 업무] ---
-    target_days = ['월', '화', '수', '목', '금']
-    filtered = full_df[full_df[0].isin(target_days)].copy()
+    # 하단 표 정보 (5행부터 끝까지)
+    st.subheader("📝 주간 상세 내역 (전주 계획 / 전주 실행 / 금주 계획)")
     
-    # 열 번호 지정: 0(요일), 1(전주계획), 4(전주실행), 7(금주계획)
-    plan_data = filtered[[0, 1, 4, 7]]
-    plan_data.columns = ['요일', '전주 계획', '전주 실행', '금주 계획']
+    # 5행을 컬럼명으로 잡고 6행부터 데이터로 취급
+    plan_df = data.iloc[5:11, 0:4] # 월~금 데이터만 추출
+    plan_df.columns = ["요일", "전주 계획", "전주 실행", "금주 계획"]
     
-    st.subheader("🗓️ 요일별 세부 업무 현황")
-    # 사장님이 보기 좋게 표로 출력
-    st.table(plan_data)
+    # 표 출력
+    st.table(plan_df)
 
-    st.success("✅ 모든 데이터는 구글 시트의 최신 정보를 반영하고 있습니다.")
+    st.success("✅ 구글 시트 업데이트 시 자동으로 반영됩니다.")
 
 except Exception as e:
-    st.error(f"데이터 반영 중 오류가 발생했습니다: {e}")
-
-except Exception as e:
-    st.error(f"데이터 반영 중 오류가 발생했습니다: {e}")
+    st.error(f"시트 연동 에러: {e}")
