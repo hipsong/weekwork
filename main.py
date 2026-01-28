@@ -6,26 +6,29 @@ SHEET_URL = "https://docs.google.com/spreadsheets/d/1ZF0lZ3Fiuelb5tntJl6m7xE1Lom
 
 st.set_page_config(page_title="서희승 과장 주간계획서", layout="wide")
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=10) # 테스트를 위해 갱신 시간을 10초로 단축
 def load_data():
-    # 데이터 로드
-    df = pd.read_csv(SHEET_URL)
+    # 데이터 로드 (헤더 없이 가져오기)
+    df = pd.read_csv(SHEET_URL, header=None)
     
-    # 1) 요일 데이터가 있는 행 찾기 ('월', '화', '수', '목', '금'을 찾습니다)
-    # 첫 번째 열(일자/요일)을 기준으로 필터링합니다.
+    # 요일 데이터가 있는 행 찾기
     target_days = ['월', '화', '수', '목', '금']
     
-    # 데이터프레임의 모든 열 이름을 초기화하여 인덱스로 접근하기 쉽게 만듭니다.
-    df.columns = [i for i in range(len(df.columns))]
-    
-    # 요일이 포함된 행만 추출
+    # 요일이 포함된 행만 필터링
     filtered = df[df[0].isin(target_days)].copy()
     
-    # 필요한 열만 선택 (0:요일, 1:전주계획, 2:전주실행, 3:금주계획)
-    # 시트 구조에 따라 열 번호는 [0, 1, 2, 3]으로 매칭됩니다.
-    result = filtered[[0, 1, 2, 3]]
+    # [핵심 수정] 실제 데이터가 들어있는 열 인덱스를 지정합니다.
+    # 0: 요일, 1: 전주계획, 4: 전주실행, 7: 금주계획
+    # 시트의 병합 상태에 따라 1, 4, 7번 열에 실제 글자가 들어있습니다.
+    result = filtered[[0, 1, 4, 7]] 
+    
+    # 깔끔하게 이름 붙이기
     result.columns = ['요일', '전주 계획', '전주 실행', '금주 계획']
     
+    # 혹시 모를 양끝 공백 제거 및 줄바꿈 정리
+    for col in result.columns:
+        result[col] = result[col].astype(str).str.replace('nan', '').str.strip()
+        
     return result
 
 st.title("📅 주간 업무 계획 보고")
@@ -35,16 +38,16 @@ try:
     plan_data = load_data()
     
     if not plan_data.empty:
-        # 표 형식으로 출력
         st.subheader("🗓️ 요일별 세부 계획 및 실행 현황")
         
-        # 데이터가 깔끔하게 보이도록 스타일 적용
+        # 표 형식으로 출력 (내용이 길 경우 줄바꿈 허용)
         st.table(plan_data)
         
-        st.info(f"💡 마지막 업데이트: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        st.success("사장님, 위 표는 구글 시트의 내용을 실시간으로 반영하고 있습니다.")
+        st.divider()
+        st.info(f"💡 마지막 업데이트: {pd.Timestamp.now().strftime('%H:%M:%S')}")
+        st.success("시트의 1번, 4번, 7번 열 데이터를 정상적으로 가져왔습니다.")
     else:
-        st.error("요일 데이터를 찾을 수 없습니다. 시트의 첫 번째 열에 '월', '화' 등의 요일이 정확히 입력되어 있는지 확인해주세요.")
+        st.error("데이터를 찾을 수 없습니다. 시트의 요일(A열)을 확인해주세요.")
 
 except Exception as e:
-    st.error(f"데이터를 불러오는 중 오류가 발생했습니다: {e}")
+    st.error(f"오류 발생: {e}")
