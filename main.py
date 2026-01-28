@@ -79,19 +79,55 @@ if choice == "계획 작성 및 저장":
         st.success(f"{write_date} 주차 계획이 저장되었습니다!")
 
 elif choice == "기록 조회":
-    st.subheader("🔍 과거 계획 조회")
+    st.subheader("🔍 주간 계획 및 실적 상세 조회")
     db = load_data()
     
     if not db.empty:
-        # 작성일 기준 유니크한 날짜 리스트
-        date_list = db["작성일"].unique()
-        selected_date = st.selectbox("조회할 주간 선택", date_list)
+        # 1. 상단 필터링 (날짜와 부서 선택)
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            date_list = sorted(db["작성일"].unique(), reverse=True)
+            selected_date = st.selectbox("📅 조회할 주간 선택", date_list)
         
-        display_df = db[db["작성일"] == selected_date].drop(columns=["작성일"])
-        st.table(display_df)
+        # 데이터 필터링
+        display_df = db[db["작성일"] == selected_date].copy()
         
-        # 엑셀 다운로드 기능
+        # 보기 좋게 정렬 (전주계획 -> 전주실행 -> 금주계획 순서)
+        order = {"전주계획": 0, "전주실행": 1, "금주계획": 2}
+        display_df['sort'] = display_df['구분'].map(order)
+        display_df = display_df.sort_values('sort').drop(columns=['sort', '작성일', '부서', '작성자'])
+
+        # 2. 스타일링 적용 (색상 및 테두리)
+        def highlight_rows(row):
+            if row['구분'] == '전주계획':
+                return ['background-color: #f0f2f6'] * len(row)
+            elif row['구분'] == '전주실행':
+                return ['background-color: #e1f5fe'] * len(row) # 연한 파랑 (실행)
+            elif row['구분'] == '금주계획':
+                return ['background-color: #e8f5e9'] * len(row) # 연한 녹색 (강조)
+            return [''] * len(row)
+
+        # 스타일이 적용된 HTML 표 생성
+        styled_df = display_df.style.apply(highlight_rows, axis=1)\
+            .set_properties(**{
+                'white-space': 'pre-wrap', # 줄바꿈 허용
+                'text-align': 'left',
+                'border': '1px solid #dee2e6',
+                'padding': '10px'
+            })\
+            .set_table_styles([
+                {'selector': 'th', 'props': [('background-color', '#31333F'), ('color', 'white'), ('text-align', 'center')]}
+            ])
+
+        # 3. 화면 출력
+        st.markdown(f"#### 📋 {selected_date} 보고 (작성자: {db[db['작성일']==selected_date]['작성자'].iloc[0]})")
+        st.write(styled_df.to_html(), unsafe_allow_html=True) # HTML로 렌더링하여 스타일 적용
+        
+        st.divider()
+        
+        # 엑셀 다운로드 버튼
         csv = display_df.to_csv(index=False, encoding='utf-8-sig').encode('utf-8-sig')
-        st.download_button("📥 현재 표 CSV 다운로드", data=csv, file_name=f"Plan_{selected_date}.csv")
+        st.download_button("📥 엑셀(CSV) 저장", data=csv, file_name=f"Report_{selected_date}.csv")
+        
     else:
         st.info("저장된 데이터가 없습니다.")
